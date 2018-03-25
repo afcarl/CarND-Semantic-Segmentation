@@ -55,7 +55,32 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # TODO: Implement function
-    return None
+
+    # 1x1 convolution on vgg_layer7_out
+    conv_layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, 1, padding='same',
+                                   kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    # upsampling
+    upsampled1 = tf.layers.conv2d_transpose(conv_layer7, num_classes, 4, 2, padding='same',
+                                            kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+
+    # 1x1 convolution on vgg_layer4_out
+    conv_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, 1, padding='same',
+                                   kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    # skip connection
+    skip_connection2 = tf.add(upsampled1, conv_layer4)
+    # upsampling
+    upsampled2 = tf.layers.conv2d_transpose(skip_connection2, num_classes, 4, 2, padding='same',
+                                            kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+
+    # 1x1 convolution on vgg_layer3_out
+    conv_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, 1, padding='same',
+                                   kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    # skip connection
+    skip_connection3 = tf.add(upsampled2, conv_layer3)
+    # upsampling
+    nn_last_layer = tf.layers.conv2d_transpose(skip_connection3, num_classes, 16, 8, padding='same',
+                                               kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    return nn_last_layer
 tests.test_layers(layers)
 
 
