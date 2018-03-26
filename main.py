@@ -58,28 +58,35 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
 
     # 1x1 convolution on vgg_layer7_out
     conv_layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, 1, padding='same',
+                                   kernel_initializer= tf.random_normal_initializer(stddev=1e-2),
                                    kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     # upsampling
     upsampled1 = tf.layers.conv2d_transpose(conv_layer7, num_classes, 4, 2, padding='same',
+                                            kernel_initializer= tf.random_normal_initializer(stddev=1e-2),
                                             kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
 
     # 1x1 convolution on vgg_layer4_out
     conv_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, 1, padding='same',
+                                   kernel_initializer= tf.random_normal_initializer(stddev=1e-2),
                                    kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     # skip connection
     skip_connection2 = tf.add(upsampled1, conv_layer4)
     # upsampling
     upsampled2 = tf.layers.conv2d_transpose(skip_connection2, num_classes, 4, 2, padding='same',
+                                            kernel_initializer= tf.random_normal_initializer(stddev=1e-2),
                                             kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
 
     # 1x1 convolution on vgg_layer3_out
     conv_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, 1, padding='same',
+                                   kernel_initializer= tf.random_normal_initializer(stddev=1e-2),
                                    kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
     # skip connection
     skip_connection3 = tf.add(upsampled2, conv_layer3)
     # upsampling
     nn_last_layer = tf.layers.conv2d_transpose(skip_connection3, num_classes, 16, 8, padding='same',
-                                               kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+                                               kernel_initializer= tf.random_normal_initializer(stddev=1e-2),
+                                               kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                               name='nn_last_layer')
     return nn_last_layer
 tests.test_layers(layers)
 
@@ -96,12 +103,12 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     # TODO: Implement function
 
     # define loss function
-    logits = tf.reshape(nn_last_layer, (-1, num_classes))
-    labels = tf.reshape(correct_label, (-1,num_classes))
+    logits = tf.reshape(nn_last_layer, (-1, num_classes), name='logits')
+    labels = tf.reshape(correct_label, (-1,num_classes), name='labels')
     cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels))
 
     # define optimizer
-    optimizer = tf.train.AdamOptimizer(learning_rate= learning_rate)
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     train_op = optimizer.minimize(cross_entropy_loss)
 
     return logits, train_op, cross_entropy_loss
@@ -109,7 +116,7 @@ tests.test_optimize(optimize)
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
-             correct_label, keep_prob, learning_rate):
+             correct_label, keep_prob, learning_rate, saver=None, run_dir=None):
     """
     Train neural network and print out the loss during training.
     :param sess: TF Session
@@ -126,16 +133,26 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     # TODO: Implement function
     sess.run(tf.global_variables_initializer())
 
+    min_loss = 10000000
     for i in range(epochs):
         for image, label in get_batches_fn(batch_size):
             _, loss = sess.run([train_op, cross_entropy_loss],
                                feed_dict={
                                    input_image: image,
                                    correct_label: label,
-                                   keep_prob: 0.25,
-                                   learning_rate: 0.001,
+                                   keep_prob: 0.5,
+                                   learning_rate: 0.0005,
                                })
-            print("Epoch: {}, Loss: = {:.3f}".format(i, loss))
+        print("Epoch: {}, Loss: = {:.3f}".format(i, loss))
+        # save model when loss is the best so far.
+        if min_loss >= loss:
+            min_loss = loss
+            # save the best model
+            if saver is not None:
+                output_path = os.path.join(run_dir, 'model.ckpt')
+                model_path = saver.save(sess, output_path)
+                print("saved model at {}".format(model_path))
+                #model_path = saver.save(sess, '/src/outputs/model_epoch-{:d}_loss-{:.3f}.ckpt'.format(i, loss))
 tests.test_train_nn(train_nn)
 
 
@@ -153,8 +170,8 @@ def run():
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
-    epochs = 50
-    batch_size = 32
+    epochs = 100
+    batch_size = 16
 
     with tf.Session() as sess:
         # Path to vgg model
@@ -175,9 +192,11 @@ def run():
                                                         learning_rate, num_classes)
 
         # TODO: Train NN using the train_nn function
+        saver = tf.train.Saver()
         train_nn(sess, epochs, batch_size, get_batches_fn,
                  train_op, cross_entropy_loss, input_image,
-                 correct_label, keep_prob, learning_rate)
+                 correct_label, keep_prob, learning_rate, saver)
+        #saved_path = saver.save(sess, '/src/outputs/model.ckpt')
 
         # TODO: Save inference data using helper.save_inference_samples
         helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
