@@ -116,7 +116,7 @@ tests.test_optimize(optimize)
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
-             correct_label, keep_prob, learning_rate, saver=None, run_dir=None):
+             correct_label, keep_prob, learning_rate):
     """
     Train neural network and print out the loss during training.
     :param sess: TF Session
@@ -144,15 +144,6 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
                                    learning_rate: 0.0005,
                                })
         print("Epoch: {}, Loss: = {:.3f}".format(i, loss))
-        # save model when loss is the best so far.
-        if min_loss >= loss:
-            min_loss = loss
-            # save the best model
-            if saver is not None:
-                output_path = os.path.join(run_dir, 'model.ckpt')
-                model_path = saver.save(sess, output_path)
-                print("saved model at {}".format(model_path))
-                #model_path = saver.save(sess, '/src/outputs/model_epoch-{:d}_loss-{:.3f}.ckpt'.format(i, loss))
 tests.test_train_nn(train_nn)
 
 
@@ -192,11 +183,9 @@ def run():
                                                         learning_rate, num_classes)
 
         # TODO: Train NN using the train_nn function
-        saver = tf.train.Saver()
         train_nn(sess, epochs, batch_size, get_batches_fn,
                  train_op, cross_entropy_loss, input_image,
-                 correct_label, keep_prob, learning_rate, saver=saver, run_dir=runs_dir)
-        #saved_path = saver.save(sess, '/src/outputs/model.ckpt')
+                 correct_label, keep_prob, learning_rate)
 
         # TODO: Save inference data using helper.save_inference_samples
         helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
