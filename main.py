@@ -195,7 +195,7 @@ def run():
         saver = tf.train.Saver()
         train_nn(sess, epochs, batch_size, get_batches_fn,
                  train_op, cross_entropy_loss, input_image,
-                 correct_label, keep_prob, learning_rate, saver)
+                 correct_label, keep_prob, learning_rate, saver=saver, run_dir=runs_dir)
         #saved_path = saver.save(sess, '/src/outputs/model.ckpt')
 
         # TODO: Save inference data using helper.save_inference_samples
